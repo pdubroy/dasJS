@@ -3,7 +3,7 @@
 dasJS is a collection of experiments in augmenting JavaScript with various
 new language features, such as:
 
-* dynamic scoping
+* [dynamic scoping](blob/master/dynamic-scope.js)
 * Common Lisp-style [conditions and restarts](http://www.gigamonkeys.com/book/beyond-exception-handling-conditions-and-restarts.html)
 * pattern-based control flow
 

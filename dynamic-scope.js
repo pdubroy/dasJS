@@ -2,17 +2,22 @@
 // Use of this source code is governed by a MIT-style license that can be
 // found in the LICENSE file.
 
+// Set up a root binding.
 dynamic.greeting = 'Hello!';
 
+// Return the dynamically-scoped greeting, i.e. use the most recent binding
+// for 'greeting' from the runtime call stack.
 function greet() {
   return dynamic.greeting;
 }
 
+// Change the greeting to German and invoke the function 'f'.
 function german(f) {
   dynamic.greeting = 'Guten Tag!';
   return f();
 }
 
+// Change the greeting to Bavarian and invoke the function 'f'.
 function bavarian(f) {
   dynamic.greeting = 'Grüß Gott!';
   return f();
