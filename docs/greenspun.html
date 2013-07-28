@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+  <title>greenspun.js</title>
+  <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+  <link rel="stylesheet" media="all" href="public/stylesheets/normalize.css" />
+  <link rel="stylesheet" media="all" href="docco.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="page">
+
+      <div class="header">
+        
+          <h1>greenspun.js</h1>
+        
+
+        
+      </div>
+
+      
+        
+        <p>Greenspun.js compiles not-quite-JavaScript into standard JS. Its purpose
+is to allow experimentation with various language features in the JavaScript
+runtime, many of which are inspired by Common Lisp. The name comes from
+&quot;<a href="http://c2.com/cgi/wiki?GreenspunsTenthRuleOfProgramming">Greenspun&#39;s 10th Rule of Programming</a>&quot;,
+which states:</p>
+<blockquote>
+<p>Any sufficiently complicated C or Fortran program contains an ad hoc,
+informally-specified, bug-ridden, slow implementation of half of Common
+Lisp.</p>
+</blockquote>
+<h2>Finding Scripts</h2>
+<p>Wrap the code in an immediately-invoked function expression.</p>
+
+        
+          <div class='highlight'><pre>;(<span class="keyword">function</span>() {</pre></div>
+        
+      
+        
+        <p>Find all <code>&lt;script&gt;</code> tags on the page that have the type <code>text/greenspun-js</code>.
+If a tag has the <code>src</code> attribute, load its contents using <code>loadResource</code>.</p>
+
+        
+          <div class='highlight'><pre><span class="keyword">var</span> scripts = document.querySelectorAll(<span class="string">'script[type="text/greenspun-js"]'</span>);
+<span class="keyword">for</span> (<span class="keyword">var</span> i = <span class="number">0</span>; i &lt; scripts.length; i++) {
+  <span class="keyword">if</span> (scripts[i].hasAttribute(<span class="string">'src'</span>))
+    loadResource(scripts[i].src, transform.bind(scripts[i]));
+}</pre></div>
+        
+      
+        
+        <h2>Loading Script Source</h2>
+<p><code>loadResource</code> loads a script from the given url and calls
+<code>fncOfContentOrNull</code> with the contents of the script, or null if the request
+fails. This implementation comes from the <a href="https://github.com/google/traceur-compiler/">Traceur
+Compiler</a>.</p>
+
+        
+          <div class='highlight'><pre><span class="function"><span class="keyword">function</span> <span class="title">loadResource</span><span class="params">(url, fncOfContentOrNull)</span> {</span>
+  <span class="keyword">var</span> xhr = <span class="keyword">new</span> XMLHttpRequest();
+  xhr.open(<span class="string">'GET'</span>, url);
+  xhr.addEventListener(<span class="string">'load'</span>, <span class="keyword">function</span>(e) {
+    <span class="keyword">if</span> (xhr.status == <span class="number">200</span> || xhr.status == <span class="number">0</span>)
+      fncOfContentOrNull(xhr.responseText);
+  });
+  <span class="keyword">var</span> onFailure = <span class="keyword">function</span>() {
+    fncOfContentOrNull(<span class="literal">null</span>);
+  };
+  xhr.addEventListener(<span class="string">'error'</span>, onFailure, <span class="literal">false</span>);
+  xhr.addEventListener(<span class="string">'abort'</span>, onFailure, <span class="literal">false</span>);
+  xhr.send();
+}</pre></div>
+        
+      
+        
+        <h2>Compilation</h2>
+<p><code>transform</code> compiles script source to standard JavaScript, and inserts
+a new script tag on the page to be executed.</p>
+
+        
+          <div class='highlight'><pre><span class="function"><span class="keyword">function</span> <span class="title">transform</span><span class="params">(source)</span> {</span></pre></div>
+        
+      
+        
+        <p>First, parse the script into an abstract syntax tree.</p>
+
+        
+          <div class='highlight'><pre>  <span class="keyword">var</span> ast = esprima.parse(source);</pre></div>
+        
+      
+        
+        <p>Then, walk the AST looking for function declarations and function
+expression nodes. Transform those nodes to implement dynamic scoping.</p>
+
+        
+          <div class='highlight'><pre>  _.walk.postorder(ast, <span class="keyword">function</span>(node) {
+    <span class="keyword">if</span> (!node) <span class="keyword">return</span>;
+
+    <span class="keyword">if</span> (node.type === <span class="string">'FunctionDeclaration'</span> ||
+        node.type === <span class="string">'FunctionExpression'</span>) {
+      implementDynamicScope(node);
+    }
+  });</pre></div>
+        
+      
+        
+        <p>Finally, append a new script tag to the document head with the transpiled
+code.</p>
+
+        
+          <div class='highlight'><pre>  <span class="keyword">var</span> scriptEl = document.createElement(<span class="string">"script"</span>);
+  scriptEl.type = <span class="string">"text/javascript"</span>;
+  scriptEl.text = escodegen.generate(ast);
+  document.querySelector(<span class="string">"head"</span>).appendChild(scriptEl);
+}</pre></div>
+        
+      
+        
+        <h2>Dynamic Scoping Implementation</h2>
+<p>Implements dynamic scoping for a given syntax tree node by wrapping
+the function body in a try/finally statement. Before the try statement,
+insert a statement that pushes a new scope onto the scope stack, and
+in the finally statement, pop that scope off the stack again.</p>
+
+        
+          <div class='highlight'><pre><span class="function"><span class="keyword">function</span> <span class="title">implementDynamicScope</span><span class="params">(node)</span> {</span>
+  <span class="keyword">var</span> newAst = esprima.parse(
+      <span class="string">'dynamic = { "__proto__": dynamic };\n'</span> +
+      <span class="string">'try {} finally { dynamic = dynamic.__proto__; }'</span>);
+  <span class="keyword">var</span> newBody = newAst.body;
+  <span class="keyword">var</span> originalBody = node.body.body;
+  node.body.body = newBody;
+  newBody[<span class="number">1</span>].block.body = originalBody;
+}</pre></div>
+        
+      
+        
+        <p>Close and invoke the function expression.</p>
+
+        
+          <div class='highlight'><pre>})(); <span class="comment">// function()</span></pre></div>
+        
+      
+        
+        <p>Declare the top-level dynamic scope.</p>
+
+        
+          <div class='highlight'><pre><span class="keyword">var</span> dynamic = {};</pre></div>
+        
+      
+        
+        <h2>License</h2>
+<p>Copyright 2013 Patrick Dubroy. All rights reserved.
+Use of this source code is governed by a MIT-style license that can be
+found in the LICENSE file.</p>
+
+        
+      
+      <div class="fleur">h</div>
+    </div>
+  </div>
+</body>
+</html>
